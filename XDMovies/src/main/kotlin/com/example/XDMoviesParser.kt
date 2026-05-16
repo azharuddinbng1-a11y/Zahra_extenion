@@ -1,9 +1,7 @@
 package com.example
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.SearchQuality
-import org.json.JSONObject
 import java.text.Normalizer
 
 class SearchData : ArrayList<SearchData.SearchDataItem>(){
@@ -64,7 +62,6 @@ data class EpisodeDetails(
 data class ResponseData(
     val meta: Meta?
 )
-
 
 data class TMDBRes(
     @JsonProperty("_id")
@@ -158,32 +155,20 @@ data class GuestStar(
     val order: Int? = null
 )
 
-// Helper function for Search Quality
 fun getSearchQuality(check: String?): SearchQuality? {
     val s = check ?: return null
     val u = Normalizer.normalize(s, Normalizer.Form.NFKC).lowercase()
     val patterns = listOf(
         Regex("\\b(4k|ds4k|uhd|2160p)\\b", RegexOption.IGNORE_CASE) to SearchQuality.FourK,
-
-        // CAM / THEATRE SOURCES FIRST
         Regex("\\b(hdts|hdcam|hdtc)\\b", RegexOption.IGNORE_CASE) to SearchQuality.HdCam,
         Regex("\\b(camrip|cam[- ]?rip)\\b", RegexOption.IGNORE_CASE) to SearchQuality.CamRip,
         Regex("\\b(cam)\\b", RegexOption.IGNORE_CASE) to SearchQuality.Cam,
-
-        // WEB / RIP
         Regex("\\b(web[- ]?dl|webrip|webdl)\\b", RegexOption.IGNORE_CASE) to SearchQuality.WebRip,
-
-        // BLURAY
         Regex("\\b(bluray|bdrip|blu[- ]?ray)\\b", RegexOption.IGNORE_CASE) to SearchQuality.BlueRay,
-
-        // RESOLUTIONS
         Regex("\\b(1440p|qhd)\\b", RegexOption.IGNORE_CASE) to SearchQuality.BlueRay,
         Regex("\\b(1080p|fullhd)\\b", RegexOption.IGNORE_CASE) to SearchQuality.HD,
         Regex("\\b(720p)\\b", RegexOption.IGNORE_CASE) to SearchQuality.SD,
-
-        // GENERIC HD LAST
         Regex("\\b(hdrip|hdtv)\\b", RegexOption.IGNORE_CASE) to SearchQuality.HD,
-
         Regex("\\b(dvd)\\b", RegexOption.IGNORE_CASE) to SearchQuality.DVD,
         Regex("\\b(hq)\\b", RegexOption.IGNORE_CASE) to SearchQuality.HQ,
         Regex("\\b(rip)\\b", RegexOption.IGNORE_CASE) to SearchQuality.CamRip
@@ -191,26 +176,4 @@ fun getSearchQuality(check: String?): SearchQuality? {
 
     for ((regex, quality) in patterns) if (regex.containsMatchIn(u)) return quality
     return null
-}
-
-// Added this function because it was missing but used in XDMovies.kt
-fun parseTmdbActors(jsonText: String?): List<Actor>? {
-    if (jsonText == null) return null
-    return try {
-        val jsonObject = JSONObject(jsonText)
-        val castArray = jsonObject.optJSONArray("cast") ?: return null
-        val list = mutableListOf<Actor>()
-        for (i in 0 until castArray.length()) {
-            val item = castArray.getJSONObject(i)
-            list.add(
-                Actor(
-                    name = item.optString("name"),
-                    role = item.optString("character")
-                )
-            )
-        }
-        list
-    } catch (e: Exception) {
-        null
-    }
 }
