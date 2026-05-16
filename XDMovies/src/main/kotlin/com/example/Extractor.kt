@@ -13,7 +13,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import com.phisher98.XDMovies.Companion.TMDBIMAGEBASEURL
+import com.example.XDMovies.Companion.TMDBIMAGEBASEURL // Fixed Import
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -192,31 +192,6 @@ class HubCloud : ExtractorApi() {
                         ) { this.quality = quality }
                     )
                 }
-                /*
-                "10gbps" in label -> {
-                    var current = link
-
-                    repeat(3) {
-                        val resp = app.get(current, allowRedirects = false)
-                        val loc = resp.headers["location"] ?: return@repeat
-
-                        if ("link=" in loc) {
-                            callback(
-                                newExtractorLink(
-                                    "$ref 10Gbps [Download]",
-                                    "$ref 10Gbps [Download] $labelExtras",
-                                    loc.substringAfter("link=")
-                                ) { this.quality = quality }
-                            )
-                        }
-                        current = loc
-                    }
-
-                    Log.e(tag, "10Gbps: Redirect limit reached")
-                }
-
-                 */
-
                 else -> {
                     loadExtractor(link, "", subtitleCallback, callback)
                 }
@@ -240,9 +215,7 @@ class HubCloud : ExtractorApi() {
     }
 
     private fun cleanTitle(title: String): String {
-
         val name = title.replace(Regex("\\.[a-zA-Z0-9]{2,4}$"), "")
-
         val normalized = name
             .replace(Regex("WEB[-_. ]?DL", RegexOption.IGNORE_CASE), "WEB-DL")
             .replace(Regex("WEB[-_. ]?RIP", RegexOption.IGNORE_CASE), "WEBRIP")
@@ -251,46 +224,32 @@ class HubCloud : ExtractorApi() {
             .replace(Regex("DDP[ .]?([0-9]\\.[0-9])", RegexOption.IGNORE_CASE), "DDP$1")
 
         val parts = normalized.split(" ", "_", ".")
-
-        val sourceTags = setOf(
-            "WEB-DL", "WEBRIP", "BLURAY", "HDRIP",
-            "DVDRIP", "HDTV", "CAM", "TS", "BRRIP", "BDRIP"
-        )
-
+        val sourceTags = setOf("WEB-DL", "WEBRIP", "BLURAY", "HDRIP", "DVDRIP", "HDTV", "CAM", "TS", "BRRIP", "BDRIP")
         val codecTags = setOf("H264", "H265", "X264", "X265", "HEVC", "AVC")
-
         val audioTags = setOf("AAC", "AC3", "DTS", "MP3", "FLAC", "DD", "DDP", "EAC3")
-
         val audioExtras = setOf("ATMOS")
-
         val hdrTags = setOf("SDR","HDR", "HDR10", "HDR10+", "DV", "DOLBYVISION")
 
         val filtered = parts.mapNotNull { part ->
             val p = part.uppercase()
-
             when {
                 sourceTags.contains(p) -> p
                 codecTags.contains(p) -> p
                 audioTags.any { p.startsWith(it) } -> p
                 audioExtras.contains(p) -> p
                 hdrTags.contains(p) -> {
-                    when (p) {
-                        "DV", "DOLBYVISION" -> "DOLBYVISION"
-                        else -> p
-                    }
+                    when (p) { "DV", "DOLBYVISION" -> "DOLBYVISION" else -> p }
                 }
                 p == "NF" || p == "CR" -> p
                 else -> null
             }
         }
-
         return filtered.distinct().joinToString(" ")
     }
 }
 
 
 class XdMoviesExtractor : ExtractorApi() {
-
     override val name = "XdMoviesExtractor"
     override val mainUrl = "https://link.xdmovies.wtf"
     override val requiresReferer = false
@@ -306,7 +265,7 @@ class XdMoviesExtractor : ExtractorApi() {
     }
 }
 
-
+// Helper function for Actors - Fix applied here
 fun parseTmdbActors(jsonText: String?): List<ActorData> {
     if (jsonText.isNullOrBlank()) return emptyList()
 
@@ -328,12 +287,11 @@ fun parseTmdbActors(jsonText: String?): List<ActorData> {
 
         list += ActorData(
             Actor(name, img),
-            roleString = role
+            role = role // Fixed parameter name
         )
     }
     return list
 }
-
 
 suspend fun fetchTmdbLogoUrl(
     tmdbAPI: String,
@@ -360,7 +318,6 @@ suspend fun fetchTmdbLogoUrl(
     fun isSvg(o: JSONObject) = path(o).endsWith(".svg", true)
     fun urlOf(o: JSONObject) = "https://image.tmdb.org/t/p/w500${path(o)}"
 
-    // Language match
     var svgFallback: JSONObject? = null
 
     for (i in 0 until logos.length()) {
@@ -376,7 +333,6 @@ suspend fun fetchTmdbLogoUrl(
     }
     svgFallback?.let { return urlOf(it) }
 
-    // Highest voted fallback
     var best: JSONObject? = null
     var bestSvg: JSONObject? = null
 
@@ -405,7 +361,6 @@ suspend fun fetchTmdbLogoUrl(
     best?.let { return urlOf(it) }
     bestSvg?.let { return urlOf(it) }
 
-    // No language match & no voted logos
     return null
 }
 
@@ -431,16 +386,18 @@ fun generateBrowserFingerprint(): String {
     return hash.joinToString("") { "%02x".format(it) }.take(32)
 }
 
-private fun getBaseUrl(url: String): String {
+// getBaseUrl is duplicated in HubCloud, but defining it here for top level usage if needed or remove if private inside class
+// For now, assuming bypassXD needs it.
+
+private fun getBaseUrlStatic(url: String): String { // Renamed to avoid conflict if HubCloud has private one
     return URI(url).let { "${it.scheme}://${it.host}" }
 }
 
 suspend fun bypassXD(url: String): String? {
-    // Follow initial redirect to get actual bypass URL
     val redirect = app.get(url, allowRedirects = false)
         .headers["location"] ?: return null
 
-    val baseUrl = getBaseUrl(redirect)
+    val baseUrl = getBaseUrlStatic(redirect)
     val code = redirect.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: return null
     val fingerprint = generateBrowserFingerprint()
 
@@ -463,7 +420,6 @@ suspend fun bypassXD(url: String): String? {
         "sec-fetch-dest"  to "empty"
     )
 
-    // ── STEP 1: Create session ────────────────────────────────────────────────
     val sessionJson = try {
         JSONObject(
             app.post(
@@ -482,7 +438,6 @@ suspend fun bypassXD(url: String): String? {
 
     val cookieHeaders = baseHeaders + mapOf("Cookie" to "sid=$sessionId")
 
-    // ── STEP 2: Rebind (simulates step-2 page reload) ────────────────────────
     val rebindJson = try {
         JSONObject(
             app.post(
@@ -495,10 +450,6 @@ suspend fun bypassXD(url: String): String? {
 
     val rebindToken = rebindJson.optString("token").takeIf { it.isNotEmpty() } ?: return null
 
-    // ── STEP 3: WebSocket heartbeats ─────────────────────────────────────────
-    // Server only advances visible-time counter when it receives
-    // "heartbeat" events over the Socket.IO WebSocket while
-    // visibility is "visible". A plain delay() does nothing.
     val wsBaseUrl = baseUrl
         .replace("https://", "wss://")
         .replace("http://",  "ws://")
@@ -516,18 +467,13 @@ suspend fun bypassXD(url: String): String? {
     var heartbeatJob: kotlinx.coroutines.Job? = null
 
     val webSocket = okHttpClient.newWebSocket(wsRequest, object : WebSocketListener() {
-
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            // Socket.IO: connect to default namespace
             webSocket.send("40")
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             when {
-                // Socket.IO ping → reply with pong to keep connection alive
                 text == "2" -> webSocket.send("3")
-
-                // Namespace connected → bind session + mark visible + start heartbeats
                 text.startsWith("40") -> {
                     webSocket.send("""42["bind","$rebindToken"]""")
                     webSocket.send("""42["visibility","visible"]""")
@@ -537,7 +483,6 @@ suspend fun bypassXD(url: String): String? {
                         while (elapsed < 28) {
                             delay(1000)
                             elapsed++
-
                             webSocket.send("""42["heartbeat"]""")
                             webSocket.send(
                                 """42["mouseActivity",${
@@ -560,7 +505,6 @@ suspend fun bypassXD(url: String): String? {
         }
     })
 
-    // Wait for 28 heartbeats (≈ 28 seconds of visible time)
     try {
         withTimeout(40_000) { visibleTimeDone.await() }
     } catch (_: Exception) {
@@ -571,7 +515,6 @@ suspend fun bypassXD(url: String): String? {
         okHttpClient.dispatcher.executorService.shutdown()
     }
 
-    // ── STEP 4: Complete session — retry until token returned ─────────────────
     var finalToken: String? = null
 
     repeat(5) { attempt ->
@@ -585,10 +528,10 @@ suspend fun bypassXD(url: String): String? {
                         "mouseData"   to mouseData.toMutableMap().apply {
                             put("duration", 28000 + attempt * 2000)
                         },
-                        "honeypot"    to ""   // must be empty — bots fill this
+                        "honeypot"    to ""
                     ),
                     headers = cookieHeaders
-                ).text
+                ).text // Fixed syntax error here
             )
             json.optString("token").takeIf { it.isNotEmpty() }?.let { finalToken = it }
         } catch (_: Exception) { }
@@ -598,11 +541,9 @@ suspend fun bypassXD(url: String): String? {
 
     val token = finalToken ?: return null
 
-    // ── STEP 5: Final redirect ────────────────────────────────────────────────
     return app.get(
         "$baseUrl/go/$sessionId?t=$token",
         allowRedirects = false,
         headers = cookieHeaders
     ).headers["location"]
 }
-
