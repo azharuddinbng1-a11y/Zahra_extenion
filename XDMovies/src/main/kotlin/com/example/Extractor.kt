@@ -13,7 +13,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import com.example.XDMovies.Companion.TMDBIMAGEBASEURL // Fixed Import
+import com.example.XDMovies.Companion.TMDBIMAGEBASEURL
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -265,7 +265,7 @@ class XdMoviesExtractor : ExtractorApi() {
     }
 }
 
-// Helper function for Actors - Fix applied here
+// Fix Applied Here: Used roleString instead of role
 fun parseTmdbActors(jsonText: String?): List<ActorData> {
     if (jsonText.isNullOrBlank()) return emptyList()
 
@@ -287,7 +287,7 @@ fun parseTmdbActors(jsonText: String?): List<ActorData> {
 
         list += ActorData(
             Actor(name, img),
-            role = role // Fixed parameter name
+            roleString = role // FIXED: Changed 'role = role' to 'roleString = role'
         )
     }
     return list
@@ -386,10 +386,7 @@ fun generateBrowserFingerprint(): String {
     return hash.joinToString("") { "%02x".format(it) }.take(32)
 }
 
-// getBaseUrl is duplicated in HubCloud, but defining it here for top level usage if needed or remove if private inside class
-// For now, assuming bypassXD needs it.
-
-private fun getBaseUrlStatic(url: String): String { // Renamed to avoid conflict if HubCloud has private one
+private fun getBaseUrlStatic(url: String): String {
     return URI(url).let { "${it.scheme}://${it.host}" }
 }
 
@@ -531,7 +528,7 @@ suspend fun bypassXD(url: String): String? {
                         "honeypot"    to ""
                     ),
                     headers = cookieHeaders
-                ).text // Fixed syntax error here
+                ).text
             )
             json.optString("token").takeIf { it.isNotEmpty() }?.let { finalToken = it }
         } catch (_: Exception) { }
