@@ -1,7 +1,9 @@
 package com.example
 
-import com.google.gson.annotations.SerializedName
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.SearchQuality
+import org.json.JSONObject
 import java.text.Normalizer
 
 class SearchData : ArrayList<SearchData.SearchDataItem>(){
@@ -20,7 +22,7 @@ class SearchData : ArrayList<SearchData.SearchDataItem>(){
 }
 
 data class IMDB(
-    @SerializedName("imdb_id")
+    @JsonProperty("imdb_id")
     val imdbId: String? = null
 )
 
@@ -65,10 +67,10 @@ data class ResponseData(
 
 
 data class TMDBRes(
-    @SerializedName("_id")
+    @JsonProperty("_id")
     val id: String? = null,
 
-    @SerializedName("air_date")
+    @JsonProperty("air_date")
     val airDate: String? = null,
 
     val episodes: List<TMDBEpisode>? = null,
@@ -79,27 +81,27 @@ data class TMDBRes(
 
     val overview: String? = null,
 
-    @SerializedName("id")
+    @JsonProperty("id")
     val id2: Long? = null,
 
-    @SerializedName("poster_path")
+    @JsonProperty("poster_path")
     val posterPath: String? = null,
 
-    @SerializedName("season_number")
+    @JsonProperty("season_number")
     val seasonNumber: Int? = null,
 
-    @SerializedName("vote_average")
+    @JsonProperty("vote_average")
     val voteAverage: Double? = null
 )
 
 data class TMDBEpisode(
-    @SerializedName("air_date")
+    @JsonProperty("air_date")
     val airDate: String? = null,
 
-    @SerializedName("episode_number")
+    @JsonProperty("episode_number")
     val episodeNumber: Int? = null,
 
-    @SerializedName("episode_type")
+    @JsonProperty("episode_type")
     val episodeType: String? = null,
 
     val id: Long? = null,
@@ -108,38 +110,38 @@ data class TMDBEpisode(
 
     val overview: String? = null,
 
-    @SerializedName("production_code")
+    @JsonProperty("production_code")
     val productionCode: String? = null,
 
     val runtime: Int? = null,
 
-    @SerializedName("season_number")
+    @JsonProperty("season_number")
     val seasonNumber: Int? = null,
 
-    @SerializedName("show_id")
+    @JsonProperty("show_id")
     val showId: Long? = null,
 
-    @SerializedName("still_path")
+    @JsonProperty("still_path")
     val stillPath: String? = null,
 
-    @SerializedName("vote_average")
+    @JsonProperty("vote_average")
     val voteAverage: Double? = null,
 
-    @SerializedName("vote_count")
+    @JsonProperty("vote_count")
     val voteCount: Int? = null,
 
     val crew: List<Crew>? = null,
 
-    @SerializedName("guest_stars")
+    @JsonProperty("guest_stars")
     val guestStars: List<GuestStar>? = null
 )
 
 data class Network(
     val id: Long? = null,
-    @SerializedName("logo_path")
+    @JsonProperty("logo_path")
     val logoPath: String? = null,
     val name: String? = null,
-    @SerializedName("origin_country")
+    @JsonProperty("origin_country")
     val originCountry: String? = null
 )
 
@@ -156,6 +158,7 @@ data class GuestStar(
     val order: Int? = null
 )
 
+// Helper function for Search Quality
 fun getSearchQuality(check: String?): SearchQuality? {
     val s = check ?: return null
     val u = Normalizer.normalize(s, Normalizer.Form.NFKC).lowercase()
@@ -186,7 +189,28 @@ fun getSearchQuality(check: String?): SearchQuality? {
         Regex("\\b(rip)\\b", RegexOption.IGNORE_CASE) to SearchQuality.CamRip
     )
 
-
     for ((regex, quality) in patterns) if (regex.containsMatchIn(u)) return quality
     return null
+}
+
+// Added this function because it was missing but used in XDMovies.kt
+fun parseTmdbActors(jsonText: String?): List<Actor>? {
+    if (jsonText == null) return null
+    return try {
+        val jsonObject = JSONObject(jsonText)
+        val castArray = jsonObject.optJSONArray("cast") ?: return null
+        val list = mutableListOf<Actor>()
+        for (i in 0 until castArray.length()) {
+            val item = castArray.getJSONObject(i)
+            list.add(
+                Actor(
+                    name = item.optString("name"),
+                    role = item.optString("character")
+                )
+            )
+        }
+        list
+    } catch (e: Exception) {
+        null
+    }
 }
